@@ -225,6 +225,7 @@ pub trait Context: Debug + WasmNotSendSync + Sized {
         sub_range: Range<BufferAddress>,
     ) -> Box<dyn BufferMappedRange>;
     fn buffer_unmap(&self, buffer_data: &Self::BufferData);
+    fn try_buffer_unmap(&self, buffer_data: &Self::BufferData) -> Result<(), wgc::resource::BufferAccessError>;
     fn shader_get_compilation_info(
         &self,
         shader_data: &Self::ShaderModuleData,
@@ -915,6 +916,7 @@ pub(crate) trait DynContext: Debug + WasmNotSendSync {
         sub_range: Range<BufferAddress>,
     ) -> Box<dyn BufferMappedRange>;
     fn buffer_unmap(&self, buffer_data: &crate::Data);
+    fn try_buffer_unmap(&self, buffer_data: &crate::Data) -> Result<(), wgc::resource::BufferAccessError>;
     fn shader_get_compilation_info(
         &self,
         shader_data: &crate::Data,
@@ -1705,6 +1707,11 @@ where
     fn buffer_unmap(&self, buffer_data: &crate::Data) {
         let buffer_data = downcast_ref(buffer_data);
         Context::buffer_unmap(self, buffer_data)
+    }
+
+    fn try_buffer_unmap(&self, buffer_data: &crate::Data) -> Result<(), wgc::resource::BufferAccessError> {
+        let buffer_data = downcast_ref(buffer_data);
+        Context::try_buffer_unmap(self, buffer_data)
     }
 
     fn shader_get_compilation_info(

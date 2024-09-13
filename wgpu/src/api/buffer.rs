@@ -254,6 +254,33 @@ impl Buffer {
         self.map_context.lock().reset();
         DynContext::buffer_unmap(&*self.context, self.data.as_ref());
     }
+    /// Tries to flush any pending write operations and unmaps the buffer from host memory.
+    pub fn try_unmap(&self) -> Result<(), BufferUnmapError> {
+        {
+            let mut map_ctx = self.map_context.lock();
+            if !map_ctx.sub_ranges.is_empty() {
+                return Err(BufferUnmapError::LiveAccessibleMappedView)
+            }
+            map_ctx.initial_range = 0..0;
+        }
+        
+        if let Err(e) = DynContext::try_buffer_unmap(&*self.context, self.data.as_ref()) {
+            Err(BufferUnmapError::BufferAccessError(e))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Returns if the mapped range of the buffer is non-zero
+    pub fn is_mapped(&self) -> bool {
+        let map_ctx = self.map_context.lock();
+        if map_ctx.initial_range.end != 0 {
+            assert!(map_ctx.sub_ranges.is_empty());
+            return true
+        }
+        false
+    }
+
 
     /// Destroy the associated native resources as soon as possible.
     pub fn destroy(&self) {
@@ -273,6 +300,16 @@ impl Buffer {
     pub fn usage(&self) -> BufferUsages {
         self.usage
     }
+}
+
+/// Different errors that could happen when unmapping a buffer.
+pub enum BufferUnmapError {
+    /// Trying to unmap a buffer that is already not mapped
+    NotMapped,
+    /// Trying to unmap a buffer which still has accessible mapped views
+    LiveAccessibleMappedView,
+    /// Error whilst accessing buffer for unmapping
+    BufferAccessError(wgc::resource::BufferAccessError),
 }
 
 /// A slice of a [`Buffer`], to be mapped, used for vertex or index data, or the like.

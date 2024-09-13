@@ -1425,6 +1425,9 @@ impl crate::Context for ContextWgpuCore {
             }
         }
     }
+    fn try_buffer_unmap(&self, buffer_data: &Self::BufferData) -> Result<(), wgc::resource::BufferAccessError> {
+        self.0.buffer_unmap(buffer_data.id)
+    }
 
     fn shader_get_compilation_info(
         &self,
